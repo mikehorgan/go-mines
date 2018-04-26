@@ -162,9 +162,13 @@ func initializeScores(b *Board) {
 			currcell := b.getCell(currloc)
 			cellScore := 0
 			// iterate over all neighbor cells
-			for nrow := currloc.row - 1; nrow < (currloc.row + 1); nrow++ {
-				for ncol := currloc.col - 1; ncol < (currloc.col + 1); ncol++ {
+			for nrow := currloc.row - 1; nrow <= (currloc.row + 1); nrow++ {
+				for ncol := currloc.col - 1; ncol <= (currloc.col + 1); ncol++ {
 					neighborloc := location{nrow, ncol}
+					// don't count yourself
+					if currloc == neighborloc {
+						continue
+					}
 					neighbor := b.getCell(neighborloc)
 					if nil == neighbor { // invalid location outside grid
 						continue

@@ -38,12 +38,12 @@ func TestBoardCreation(t *testing.T) {
 	for _, testcase := range cases {
 		got := NewBoard(testcase.difficulty)
 		if (got != nil) != testcase.want {
-			t.Errorf("NewBoard() failed for %q got %v", testcase.difficulty, got)
+			t.Errorf("NewBoard) failed for %q got %v", testcase.difficulty, got)
 		}
 
 		// check returned board shape
 		if got != nil && (got.rows != testcase.rows || got.cols != testcase.cols) {
-			t.Errorf("NewBoard() returned incorrect shape. Expected %dx%d, got %dx%d", testcase.rows, testcase.cols, got.rows, got.cols)
+			t.Errorf("NewBoard) returned incorrect shape. Expected %dx%d, got %dx%d", testcase.rows, testcase.cols, got.rows, got.cols)
 		}
 	}
 }
@@ -73,7 +73,7 @@ func TestBoardInitialization(t *testing.T) {
 		safeWanted := (bt.rows * bt.cols) - bt.mineCount
 		safeGot := b.SafeRemaining()
 		if safeGot != safeWanted {
-			t.Errorf("Board post-init SafeRemaining() count wrong. Game type %q wanted %d got %d", bt.difficulty, safeWanted, safeGot)
+			t.Errorf("Board post-init SafeRemaining) count wrong. Game type %q wanted %d got %d", bt.difficulty, safeWanted, safeGot)
 		}
 
 		mineCountWanted := bt.mineCount
@@ -104,7 +104,58 @@ func countMineCells(b *Board) int {
 	return retval
 }
 
-func TestBoardRender(t *testing.T) {
+func TestCellScores(t *testing.T) {
+	rand.Seed(1995) // repeated test sequence for now
+	boardTypes := []boardparams{boardDefinitionsDict()["easy"], boardDefinitionsDict()["medium"], boardDefinitionsDict()["hard"]}
+
+	for _, bt := range boardTypes {
+		b := NewBoard(bt.difficulty)
+		if b == nil {
+			t.Errorf("Board Creation failed for difficulty %q", bt.difficulty)
+			continue
+		}
+
+		// Initialize with random starting location
+		startingLocation := location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
+		ok := b.Initialize(startingLocation)
+		if ok != nil {
+			t.Errorf("Board init for type %q failed with error %q.", bt.difficulty, ok)
+			continue
+		}
+
+		// Calculate score for each non-mine square and compare against board score
+		// done verbosely to aid with debugging visibility
+
+		for row := range b.cells {
+			for col := range b.cells[row] {
+				currCell := b.getCell(location{row, col})
+				neighborLocations := []location{
+					location{row - 1, col - 1},
+					location{row - 1, col},
+					location{row - 1, col + 1},
+					location{row, col - 1},
+					location{row, col + 1},
+					location{row + 1, col - 1},
+					location{row + 1, col},
+					location{row + 1, col + 1},
+				}
+				neighborCells := make([]*cell, len(neighborLocations))
+				mineCount := 0
+				for i := 0; i < len(neighborLocations); i++ {
+					neighborCells[i] = b.getCell(neighborLocations[i])
+					if neighborCells[i] != nil && neighborCells[i].HasMine() {
+						mineCount++
+					}
+				}
+				if currCell.score != mineCount {
+					t.Errorf("Mine Score incorrect for game type %q at cell %d,%d : expected %d got %d", bt.difficulty, row, col, mineCount, currCell.score)
+				}
+			}
+		}
+	}
+}
+
+func TestConsoleRender(t *testing.T) {
 	rand.Seed(1995) // want same test sequence each time
 
 	boardTypes := []boardparams{boardDefinitionsDict()["easy"], boardDefinitionsDict()["medium"], boardDefinitionsDict()["hard"]}
@@ -152,12 +203,5 @@ func TestBoardRender(t *testing.T) {
 			t.Errorf("Render test comparison failure.  Expected:\n%q\n\n Got:\n%q\n", string(testdata), string(buf.Bytes()))
 		}
 	}
-
-}
-
-func TestBoardClick(t *testing.T) {
-}
-
-func TestBoardWinCondition(t *testing.T) {
 
 }
