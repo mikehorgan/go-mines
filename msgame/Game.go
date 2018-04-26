@@ -13,8 +13,11 @@ import (
 	"go-mines/msboard"
 	"io"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Game : main minesweeper game runner class
@@ -99,12 +102,40 @@ game_over:
 
 // readNextMove -- read and parse an input line to a cell location
 func readNextMove(in *bufio.Scanner) (msboard.Location, error) {
-	_, err := readInput(in)
+	/*
+	   A move is picking a cell position, which are numbered for rows and letters for columns
+	   The intent is to allow teh user to specify a row+column combo in whatever order they prefer
+	   We'll gather the digits and letters separately to figure out the intended location
+	*/
+
+	inLine, err := readInput(in)
 	if err != nil {
 		return msboard.NewLocation(-1, -1), err
 	}
+	digits := ""
+	letters := make([]rune, 0)
+	inputRunes := []rune(inLine)
+	for i := 0; i < len(inputRunes); i++ {
+		if unicode.IsDigit(inputRunes[i]) {
+			digits += string(inputRunes[i])
+		} else {
+			letters = append(letters, inputRunes[i])
+		}
+	}
 
-	return msboard.NewLocation(7, 6), nil
+	userRow, err := strconv.Atoi(digits)
+	if err != nil {
+		userRow = -1
+	}
+	userRow-- // offset because locations are 0 based, user sees 1 as first row
+
+	userCol := -1
+	if len(letters) > 0 {
+		userCol = int(letters[0]) - int('a')
+		fmt.Fprintf(os.Stderr, "Converting %q %d results: %d\n", string(letters), letters[0], userCol)
+	}
+
+	return msboard.NewLocation(userRow, userCol), err
 }
 
 // readOneCharacter -- consume a line of input but return only the first non-whitespace character
