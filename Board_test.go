@@ -159,7 +159,6 @@ func TestCellScores(t *testing.T) {
 
 //	This test function is used to generate correct test cases as teh board layout evolves; normally commented out
 
-
 func TestConsoleRenderToFile(t *testing.T) {
 	rand.Seed(1995) // want same test sequence each time
 

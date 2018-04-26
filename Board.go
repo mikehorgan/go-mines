@@ -87,9 +87,9 @@ type boardparams struct {
 var boardDefinitionsDict = func() map[string]boardparams {
 	return map[string]boardparams{
 		// name : difficulty, rows, cols, mines
-		"easy":   {"easy", 9, 9, 6},
-		"medium": {"medium", 16, 16, 18},
-		"hard":   {"hard", 30, 16, 36},
+		"easy":   {"easy", 9, 9, 10},
+		"medium": {"medium", 16, 16, 30},
+		"hard":   {"hard", 30, 16, 72},
 	}
 }
 
@@ -235,7 +235,7 @@ func (b *Board) ConsoleRender(cout io.Writer) error {
 	headingLine := ""
 	switch b.difficulty {
 	case "easy":
-		headingLine = "    A  B  C  D  E  F  G  H"
+		headingLine = "    A  B  C  D  E  F  G  H  I"
 	case "medium", "hard":
 		headingLine = "    A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P"
 	}
