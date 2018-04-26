@@ -29,6 +29,7 @@ type cell struct {
 // BoardSaveState : Persistable board state object, read/written as JSON
 type boardSaveState struct {
 	initialized bool // board starts uninitialized, and then gets populated after player's first 'guaranteed safe' move
+	difficulty  string
 	rows        int
 	cols        int
 	mines       []location
@@ -102,7 +103,7 @@ func NewBoard(difficulty string) *Board {
 	}
 
 	retval := new(Board)
-	retval.rows, retval.cols, retval.mineCount = params.rows, params.cols, params.mineCount
+	retval.difficulty, retval.rows, retval.cols, retval.mineCount = difficulty, params.rows, params.cols, params.mineCount
 
 	return retval
 }
@@ -229,11 +230,24 @@ func (b *Board) ConsoleRender(cout io.Writer) error {
 	if nil == b || !b.initialized {
 		return errors.New("called Render() on an uninitialized board")
 	}
+
+	// top line is header
+	headingLine := ""
+	switch b.difficulty {
+	case "easy":
+		headingLine = "    A  B  C  D  E  F  G  H"
+	case "medium", "hard":
+		headingLine = "    A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P"
+	}
+	fmt.Fprintln(cout, headingLine)
+
 	for row := range b.cells {
-		nextLine := ""
+		// index column along left side
+		nextLine := fmt.Sprintf("%2d  ", row+1)
+
 		for col := range b.cells[row] {
 			if col != 0 {
-				nextLine += " "
+				nextLine += "  "
 			}
 			nextLine += string(b.cells[row][col].Render())
 		}

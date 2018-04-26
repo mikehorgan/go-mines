@@ -155,6 +155,58 @@ func TestCellScores(t *testing.T) {
 	}
 }
 
+/*
+
+//	This test function is used to generate correct test cases as teh board layout evolves; normally commented out
+
+
+func TestConsoleRenderToFile(t *testing.T) {
+	rand.Seed(1995) // want same test sequence each time
+
+	boardTypes := []boardparams{boardDefinitionsDict()["easy"], boardDefinitionsDict()["medium"], boardDefinitionsDict()["hard"]}
+
+	for _, bt := range boardTypes {
+		b := NewBoard(bt.difficulty)
+		if b == nil {
+			t.Errorf("Board Creation failed for difficulty %q", bt.difficulty)
+			continue
+		}
+
+		// Initialize with random starting location
+		startingLocation := location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
+		ok := b.Initialize(startingLocation)
+		if ok != nil {
+			t.Errorf("Board init for type %q failed with error %q.", bt.difficulty, ok)
+			continue
+		}
+
+		// capture output in a file
+		filename := fmt.Sprintf("render.%s.out", bt.difficulty)
+		buf, err := os.Create(filename)
+		if err != nil {
+			t.Errorf("Could not create output file %q : %s", filename, err)
+			continue
+		}
+
+		// render twice: once hidden, once revealed
+		err = b.ConsoleRender(buf)
+		if err != nil {
+			t.Errorf("Error during ConsoleRender for game type %q: %s", bt.difficulty, err)
+		}
+		fmt.Fprintln(buf)
+
+		b.RevealAll()
+		err = b.ConsoleRender(buf)
+		if err != nil {
+			t.Errorf("Error during ConsoleRender for game type %q: %s", bt.difficulty, err)
+		}
+	}
+}
+
+// End of test case generation function
+
+----------------------------------------*/
+
 func TestConsoleRender(t *testing.T) {
 	rand.Seed(1995) // want same test sequence each time
 
