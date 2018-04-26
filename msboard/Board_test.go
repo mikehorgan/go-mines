@@ -4,7 +4,7 @@
 	mike@pocomotech.com
 */
 
-package gomines
+package msboard
 
 import (
 	"bytes"
@@ -62,8 +62,8 @@ func TestBoardInitialization(t *testing.T) {
 			continue
 		}
 
-		// Initialize with random starting location
-		startingLocation := location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
+		// Initialize with random starting Location
+		startingLocation := Location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
 		ok := b.Initialize(startingLocation)
 		if ok != nil {
 			t.Errorf("Board init for type %q failed with error %q.", bt.difficulty, ok)
@@ -94,7 +94,7 @@ func countMineCells(b *Board) int {
 	retval := 0
 	for r := 0; r < b.rows; r++ {
 		for c := 0; c < b.rows; c++ {
-			testcell := b.getCell(location{r, c})
+			testcell := b.getCell(Location{r, c})
 			if testcell.HasMine() {
 				retval++
 			}
@@ -115,8 +115,8 @@ func TestCellScores(t *testing.T) {
 			continue
 		}
 
-		// Initialize with random starting location
-		startingLocation := location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
+		// Initialize with random starting Location
+		startingLocation := Location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
 		ok := b.Initialize(startingLocation)
 		if ok != nil {
 			t.Errorf("Board init for type %q failed with error %q.", bt.difficulty, ok)
@@ -128,16 +128,16 @@ func TestCellScores(t *testing.T) {
 
 		for row := range b.cells {
 			for col := range b.cells[row] {
-				currCell := b.getCell(location{row, col})
-				neighborLocations := []location{
-					location{row - 1, col - 1},
-					location{row - 1, col},
-					location{row - 1, col + 1},
-					location{row, col - 1},
-					location{row, col + 1},
-					location{row + 1, col - 1},
-					location{row + 1, col},
-					location{row + 1, col + 1},
+				currCell := b.getCell(Location{row, col})
+				neighborLocations := []Location{
+					Location{row - 1, col - 1},
+					Location{row - 1, col},
+					Location{row - 1, col + 1},
+					Location{row, col - 1},
+					Location{row, col + 1},
+					Location{row + 1, col - 1},
+					Location{row + 1, col},
+					Location{row + 1, col + 1},
 				}
 				neighborCells := make([]*cell, len(neighborLocations))
 				mineCount := 0
@@ -171,8 +171,8 @@ func TestConsoleRenderToFile(t *testing.T) {
 			continue
 		}
 
-		// Initialize with random starting location
-		startingLocation := location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
+		// Initialize with random starting Location
+		startingLocation := Location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
 		ok := b.Initialize(startingLocation)
 		if ok != nil {
 			t.Errorf("Board init for type %q failed with error %q.", bt.difficulty, ok)
@@ -218,8 +218,8 @@ func TestConsoleRender(t *testing.T) {
 			continue
 		}
 
-		// Initialize with random starting location
-		startingLocation := location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
+		// Initialize with random starting Location
+		startingLocation := Location{rand.Intn(bt.rows), rand.Intn(bt.cols)}
 		ok := b.Initialize(startingLocation)
 		if ok != nil {
 			t.Errorf("Board init for type %q failed with error %q.", bt.difficulty, ok)

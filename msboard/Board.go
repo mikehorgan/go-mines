@@ -5,7 +5,7 @@
 
 */
 
-package gomines
+package msboard
 
 import (
 	"errors"
@@ -14,8 +14,15 @@ import (
 	"math/rand"
 )
 
-type location struct {
+// Location : zero-based cell location, {0,0} is upper left
+type Location struct {
 	row, col int
+}
+
+// NewLocation -- public interface to create a Location struct
+func NewLocation(row, col int) Location {
+	retval := Location{row, col}
+	return retval
 }
 
 // cell : manage state for a single cell on the board
@@ -28,11 +35,12 @@ type cell struct {
 
 // BoardSaveState : Persistable board state object, read/written as JSON
 type boardSaveState struct {
-	initialized bool // board starts uninitialized, and then gets populated after player's first 'guaranteed safe' move
-	difficulty  string
-	rows        int
-	cols        int
-	mines       []location
+	initialized      bool // board starts uninitialized, and then gets populated after player's first 'guaranteed safe' move
+	difficulty       string
+	rows             int
+	cols             int
+	mines            []Location
+	explosionOccured bool
 }
 
 // Board struct manages state of the Minesweeper board
@@ -108,8 +116,8 @@ func NewBoard(difficulty string) *Board {
 	return retval
 }
 
-// Initialize : construct a new Board with consideratioon for user's selected 'safe' location
-func (b *Board) Initialize(safespot location) error {
+// Initialize : construct a new Board with consideratioon for user's selected 'safe' Location
+func (b *Board) Initialize(safespot Location) error {
 
 	// Create default cells, then loop over grid and place bombs randomly at 10% probbality until bomb supply exhausted
 	b.cells = make([][]cell, b.rows)
@@ -126,7 +134,7 @@ func (b *Board) Initialize(safespot location) error {
 					continue
 				}
 
-				currloc := location{row, col}
+				currloc := Location{row, col}
 				if currloc == safespot {
 					continue // can't place mine at user's safe starting cell
 				}
@@ -137,7 +145,7 @@ func (b *Board) Initialize(safespot location) error {
 					if currcell.hasMine {
 						continue // we already placed a mine here
 					}
-					// place and record mine at current location
+					// place and record mine at current Location
 					b.cells[row][col].hasMine = true
 					b.mines = append(b.mines, currloc)
 					minesToPlace--
@@ -159,19 +167,19 @@ func initializeScores(b *Board) {
 
 	for row := range b.cells {
 		for col := range b.cells[row] {
-			currloc := location{row, col}
+			currloc := Location{row, col}
 			currcell := b.getCell(currloc)
 			cellScore := 0
 			// iterate over all neighbor cells
 			for nrow := currloc.row - 1; nrow <= (currloc.row + 1); nrow++ {
 				for ncol := currloc.col - 1; ncol <= (currloc.col + 1); ncol++ {
-					neighborloc := location{nrow, ncol}
+					neighborloc := Location{nrow, ncol}
 					// don't count yourself
 					if currloc == neighborloc {
 						continue
 					}
 					neighbor := b.getCell(neighborloc)
-					if nil == neighbor { // invalid location outside grid
+					if nil == neighbor { // invalid Location outside grid
 						continue
 					}
 					if neighbor.hasMine {
@@ -194,7 +202,7 @@ func (b *Board) Initialized() bool {
 }
 
 // GetCell : return a reference to a particular cell
-func (b *Board) getCell(selected location) *cell {
+func (b *Board) getCell(selected Location) *cell {
 	// bunch of preconditions
 	if selected.row < 0 || selected.row >= b.rows || selected.col < 0 || selected.col >= b.cols {
 		return nil
@@ -255,4 +263,9 @@ func (b *Board) ConsoleRender(cout io.Writer) error {
 	}
 
 	return nil
+}
+
+// MineHit -- convenience function for game loop
+func (b *Board) MineHit() bool {
+	return b.explosionOccured
 }
