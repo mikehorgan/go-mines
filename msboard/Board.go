@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 )
 
 // Location : zero-based cell location, {0,0} is upper left
@@ -27,10 +28,11 @@ func NewLocation(row, col int) Location {
 
 // cell : manage state for a single cell on the board
 type cell struct {
-	hasMine  bool // cell holds mine
-	score    int  // cache static score for this cell
-	flagged  bool // user flag
-	revealed bool // all cells start hidden
+	location Location // cell position in grid, zero based, {0,0} is upper left
+	hasMine  bool     // cell holds mine
+	score    int      // cache static score for this cell
+	flagged  bool     // user flag
+	revealed bool     // all cells start hidden
 }
 
 // BoardSaveState : Persistable board state object, read/written as JSON
@@ -45,10 +47,10 @@ type boardSaveState struct {
 
 // Board struct manages state of the Minesweeper board
 type Board struct {
-	boardSaveState          // persistable state
-	cells          [][]cell // cells of initialized board
-	safeRemaining  int      // cache number of non-mine cells remaining to be revealed
-	mineCount      int      // number of mines defined for this board
+	boardSaveState           // persistable state
+	cells          [][]*cell // cells of initialized board
+	safeRemaining  int       // cache number of non-mine cells remaining to be revealed
+	mineCount      int       // number of mines defined for this board
 }
 
 /************************************\
@@ -120,9 +122,13 @@ func NewBoard(difficulty string) *Board {
 func (b *Board) Initialize(safespot Location) error {
 
 	// Create default cells, then loop over grid and place bombs randomly at 10% probbality until bomb supply exhausted
-	b.cells = make([][]cell, b.rows)
+	b.cells = make([][]*cell, b.rows)
 	for row := range b.cells {
-		b.cells[row] = make([]cell, b.cols)
+		b.cells[row] = make([]*cell, b.cols)
+		for col := range b.cells[row] {
+			b.cells[row][col] = new(cell)
+			b.cells[row][col].location = NewLocation(row, col)
+		}
 	}
 	b.safeRemaining = b.rows * b.cols
 
@@ -171,26 +177,49 @@ func initializeScores(b *Board) {
 			currcell := b.getCell(currloc)
 			cellScore := 0
 			// iterate over all neighbor cells
-			for nrow := currloc.row - 1; nrow <= (currloc.row + 1); nrow++ {
-				for ncol := currloc.col - 1; ncol <= (currloc.col + 1); ncol++ {
-					neighborloc := Location{nrow, ncol}
-					// don't count yourself
-					if currloc == neighborloc {
-						continue
-					}
-					neighbor := b.getCell(neighborloc)
-					if nil == neighbor { // invalid Location outside grid
-						continue
-					}
-					if neighbor.hasMine {
-						cellScore++
-					}
+			neighbors := b.getNeighborCells(currloc)
+			if nil == neighbors {
+				fmt.Fprintln(os.Stderr, "Board init failure for cell (this should not happen :() :  ", currloc)
+			}
+
+			for _, neighbor := range neighbors {
+				if neighbor.hasMine {
+					cellScore++
 				}
 			}
 			currcell.score = cellScore
 		}
 	}
 
+}
+
+// GetNeighborCells - return array of pointers to all valid neighbor cells given a cell location
+func (b *Board) getNeighborCells(loc Location) []*cell {
+	// sanity check
+	center := b.getCell(loc)
+	if nil == center {
+		return nil
+	}
+
+	retval := make([]*cell, 0, 8)
+
+	// iterate over all potential neighbor cell position
+	for nrow := loc.row - 1; nrow <= (loc.row + 1); nrow++ {
+		for ncol := loc.col - 1; ncol <= (loc.col + 1); ncol++ {
+			neighborloc := Location{nrow, ncol}
+			// don't include center point
+			if loc == neighborloc {
+				continue
+			}
+			neighbor := b.getCell(neighborloc)
+			if nil == neighbor { // invalid Location outside grid
+				continue
+			}
+			retval = append(retval, neighbor)
+		}
+	}
+
+	return retval
 }
 
 // Initialized : return board initilization status
@@ -207,7 +236,7 @@ func (b *Board) getCell(selected Location) *cell {
 	if selected.row < 0 || selected.row >= b.rows || selected.col < 0 || selected.col >= b.cols {
 		return nil
 	}
-	return &b.cells[selected.row][selected.col]
+	return b.cells[selected.row][selected.col]
 }
 
 // SafeRemaining : report number of unrevealed non-mine cells remaining. Win condition is when this number reaches 0
@@ -265,7 +294,91 @@ func (b *Board) ConsoleRender(cout io.Writer) error {
 	return nil
 }
 
+// Click -- Calculate and apply board state changes for a cell click event
+func (b *Board) Click(l Location) {
+	c := b.getCell(l)
+
+	if nil == c {
+		return
+	}
+
+	// flagged cells are protected from inadvertant clicks
+	if c.flagged {
+		return
+	}
+
+	// already revealed cells do not respond to clicks
+	if c.revealed {
+		return
+	}
+
+	// reveal cell
+	c.revealed = true
+
+	// Mine? Explode
+	if c.hasMine {
+		b.explosionOccured = true
+		return
+	}
+
+	// non-zero score cells do not propagate (I think)
+	if c.score == 0 {
+		// propagate reveals for zero score cells
+		b.PropagateReveals(c)
+	}
+
+}
+
+// PropagateReveals -- clicking on a zero score cell reveals all connected zero score cells
+func (b *Board) PropagateReveals(c *cell) {
+	if nil == c {
+		return
+	}
+
+	neighbors := b.getNeighborCells(c.location)
+	// fmt.Fprintln(os.Stderr, "PropagateReveals: ", c.location, " has ", len(neighbors), " neighbors.")
+
+	if nil == neighbors {
+		fmt.Fprintln(os.Stderr, "PropogateReveals failure for cell (this should not happen :() :  ", c.location)
+	}
+
+	// reveal unrevealed neighbors and recurse for any zero-scored ones
+	for _, n := range neighbors {
+		if n.revealed {
+			continue
+		}
+
+		n.revealed = true
+
+		// debug
+		// fmt.Fprintln(os.Stderr, "Revealing ", n.location, " (score = ", n.score, ") from ", c.location)
+
+		if n.score == 0 {
+			b.PropagateReveals(n)
+		}
+	}
+
+}
+
 // MineHit -- convenience function for game loop
 func (b *Board) MineHit() bool {
 	return b.explosionOccured
+}
+
+// ToggleFlag -- toggle flag status for a cell, ignored for non-hidden cells
+func (b *Board) ToggleFlag(l Location) {
+	c := b.getCell(l)
+
+	if nil != c && c.revealed == false {
+		c.flagged = !c.flagged
+	}
+}
+
+// ValidLocation -- return true if selected location is valid for the board
+func (b *Board) ValidLocation(l Location) bool {
+	if l.row >= 0 && l.row < b.rows && l.col >= 0 && l.col < b.cols {
+		return true
+	}
+
+	return false
 }

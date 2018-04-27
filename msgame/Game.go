@@ -2,6 +2,8 @@
 
 	Game.go - minesweeper game logic loop
 
+	mike@pocomotech.com
+
 */
 
 // Package msgame -- Game logic/play implemention for Go Minesweeper
@@ -24,17 +26,19 @@ import (
 type Game struct {
 	start     time.Time
 	turnCount int
+	randSeed  int64
 }
 
-//New -- init a new Game object
-func New() *Game {
+//New -- init a new Game object with given random seed for testing
+func New(seed int64) *Game {
 	retval := new(Game)
 	retval.start = time.Now()
+	retval.randSeed = seed
 
 	return retval
 }
 
-// RunConsole -- run a fame loop using Console rendering to the provided input/output objects
+// RunConsole -- run a game loop using Console rendering to the provided input/output objects
 func (g *Game) RunConsole(cin io.Reader, cout io.Writer) error {
 
 	/* Game loop:
@@ -48,9 +52,11 @@ func (g *Game) RunConsole(cin io.Reader, cout io.Writer) error {
 	*/
 
 	// get random
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(g.randSeed)
+	// output seed on stderr for potential replay in debugger
+	fmt.Fprintf(os.Stderr, "{ starting with random seed %d }\n\n", g.randSeed)
 
-	// buffered input reader and writer
+	// buffered reader and writer
 	in := bufio.NewScanner(cin)
 	out := bufio.NewWriter(cout)
 
@@ -79,19 +85,49 @@ func (g *Game) RunConsole(cin io.Reader, cout io.Writer) error {
 
 		board := msboard.NewBoard(boardType)
 
-		// have to init board before displaying initial blank board; re-init after user chooses first square
+		// have to init board before displaying initial blank board; re-init after user chooses safe square
 		board.Initialize(msboard.NewLocation(0, 0))
-		board.ConsoleRender(cout)
+		board.ConsoleRender(out)
 
+		gameInit := false
 		for !board.MineHit() && board.SafeRemaining() > 0 {
-			fmt.Fprint(out, "Choose next move :  ")
+
+			if !gameInit {
+				fmt.Fprint(out, "\nChoose starting cell location:  ")
+			} else {
+				fmt.Fprint(out, "\nChoose command (s,f) & location :  ")
+			}
 			out.Flush()
 
-			location, err := readNextMove(in)
+			cmd, location, err := readNextMove(in)
 			if err != nil {
+				fmt.Fprintln(os.Stderr, "readNextmove() failure: cmd ", cmd, " location ", location, " err ", err)
 				continue
 			}
 			fmt.Fprintln(out, location)
+
+			// sanity check
+			if !board.ValidLocation(location) {
+				fmt.Fprint(out, "Invalid board location selected, please retry: ", location)
+				continue
+			}
+
+			if !gameInit {
+				// game starts now with user's 'safe' square
+				board.Initialize(location)
+				gameInit = true
+			}
+
+			switch cmd {
+			case "s":
+				board.Click(location)
+			case "f":
+				board.ToggleFlag(location)
+			default:
+				fmt.Fprintf(out, "Invalid command selection %q\n", cmd)
+			}
+
+			board.ConsoleRender(out)
 		}
 
 	}
@@ -100,8 +136,8 @@ game_over:
 	return nil
 }
 
-// readNextMove -- read and parse an input line to a cell location
-func readNextMove(in *bufio.Scanner) (msboard.Location, error) {
+// readNextMove -- read and parse an input line into a cell location
+func readNextMove(in *bufio.Scanner) (string, msboard.Location, error) {
 	/*
 	   A move is picking a cell position, which are numbered for rows and letters for columns
 	   The intent is to allow teh user to specify a row+column combo in whatever order they prefer
@@ -110,7 +146,7 @@ func readNextMove(in *bufio.Scanner) (msboard.Location, error) {
 
 	inLine, err := readInput(in)
 	if err != nil {
-		return msboard.NewLocation(-1, -1), err
+		return "", msboard.NewLocation(-1, -1), err
 	}
 	digits := ""
 	letters := make([]rune, 0)
@@ -132,10 +168,9 @@ func readNextMove(in *bufio.Scanner) (msboard.Location, error) {
 	userCol := -1
 	if len(letters) > 0 {
 		userCol = int(letters[0]) - int('a')
-		fmt.Fprintf(os.Stderr, "Converting %q %d results: %d\n", string(letters), letters[0], userCol)
 	}
 
-	return msboard.NewLocation(userRow, userCol), err
+	return "s", msboard.NewLocation(userRow, userCol), err
 }
 
 // readOneCharacter -- consume a line of input but return only the first non-whitespace character
